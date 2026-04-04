@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GitPulse — Your GitHub Profile, Visualized</title>
+  <meta name="description" content="Enter any GitHub username, get a visual developer profile card with language breakdown, activity heatmap, repo stats, and a shareable profile card.">
+  <meta property="og:title" content="GitPulse — Your GitHub Profile, Visualized">
+  <meta property="og:description" content="Visual GitHub profile analyzer with language breakdown, contribution heatmap, repo stats, and shareable profile cards.">
+  <meta property="og:image" content="https://0xmortuex.github.io/GitPulse/assets/og-image.png">
+  <meta property="og:url" content="https://0xmortuex.github.io/GitPulse/">
+  <meta property="og:type" content="website">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/card.css">
+  <link rel="stylesheet" href="css/export.css">
+</head>
+<body>
+
+  <!-- Toast Container -->
+  <div id="toast-container"></div>
+
+  <!-- View 1: Input View -->
+  <section id="input-view" class="view active">
+    <div class="input-view-content">
+      <div class="logo-section fade-slide-up">
+        <div class="logo">
+          <svg class="logo-icon" viewBox="0 0 40 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M2 12h4l3-8 4 16 3-12 2 4h8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <h1 class="logo-text">GitPulse</h1>
+        </div>
+        <p class="tagline">Your GitHub profile, visualized.</p>
+      </div>
+
+      <div class="search-section fade-slide-up" style="animation-delay: 0.1s">
+        <div class="search-bar" id="search-bar">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 19c-5 0-9-4-9-9s4-9 9-9 9 4 9 9c0 2.2-.8 4.2-2.1 5.8"/>
+            <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2z" d="M15 11a4 4 0 11-8 0 4 4 0 018 0z"/>
+            <circle cx="11" cy="11" r="7"/>
+            <path d="M16.5 16.5L21 21"/>
+          </svg>
+          <input
+            type="text"
+            id="username-input"
+            placeholder="Enter a GitHub username..."
+            autocomplete="off"
+            spellcheck="false"
+          >
+          <button id="analyze-btn" class="btn btn-primary">
+            <span class="btn-text">Analyze</span>
+            <div class="btn-loader" hidden>
+              <div class="spinner"></div>
+            </div>
+          </button>
+        </div>
+        <p class="search-hint">Press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> to search</p>
+      </div>
+
+      <div class="examples-section fade-slide-up" style="animation-delay: 0.2s">
+        <p class="examples-label">Try an example:</p>
+        <div class="example-chips" id="example-chips"></div>
+      </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay" hidden>
+      <div class="loading-content">
+        <div class="loading-ring"></div>
+        <p class="loading-text">Fetching profile data...</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- View 2: Profile View -->
+  <section id="profile-view" class="view">
+    <header class="top-bar">
+      <a href="#" class="top-bar-logo" id="back-to-input">
+        <svg class="logo-icon-sm" viewBox="0 0 40 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M2 12h4l3-8 4 16 3-12 2 4h8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="logo-text-sm">GitPulse</span>
+      </a>
+      <div class="top-bar-actions">
+        <button id="export-btn" class="btn btn-primary btn-sm">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Export Card
+        </button>
+        <button id="new-search-btn" class="btn btn-ghost btn-sm">New Search</button>
+      </div>
+    </header>
+
+    <main class="profile-content">
+      <!-- Profile Header -->
+      <div class="profile-header card animate-card" id="profile-header">
+        <div class="profile-info">
+          <img id="profile-avatar" class="profile-avatar" src="" alt="Avatar">
+          <div class="profile-text">
+            <h2 class="profile-username" id="profile-username"></h2>
+            <p class="profile-name" id="profile-name"></p>
+            <p class="profile-bio" id="profile-bio"></p>
+            <div class="profile-meta" id="profile-meta"></div>
+          </div>
+        </div>
+        <div class="profile-stats" id="profile-stats"></div>
+      </div>
+
+      <!-- Grid -->
+      <div class="profile-grid">
+        <!-- Languages -->
+        <div class="card card-half animate-card" id="card-languages">
+          <h3 class="card-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10A15.3 15.3 0 0112 2z"/></svg>
+            Languages
+          </h3>
+          <div class="card-body" id="languages-content"></div>
+        </div>
+
+        <!-- Top Repos -->
+        <div class="card card-half animate-card" id="card-repos">
+          <h3 class="card-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+            Top Repos
+          </h3>
+          <div class="card-body" id="repos-content"></div>
+        </div>
+
+        <!-- Heatmap -->
+        <div class="card card-full animate-card" id="card-heatmap">
+          <h3 class="card-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            Activity (Last 90 Days)
+          </h3>
+          <div class="card-body" id="heatmap-content"></div>
+        </div>
+
+        <!-- Timeline -->
+        <div class="card card-full animate-card" id="card-timeline">
+          <h3 class="card-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+            Repos Created Over Time
+          </h3>
+          <div class="card-body chart-container">
+            <canvas id="timeline-chart"></canvas>
+          </div>
+        </div>
+
+        <!-- Insights -->
+        <div class="card card-third animate-card" id="card-insights">
+          <h3 class="card-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            Insights
+          </h3>
+          <div class="card-body" id="insights-content"></div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="card card-third animate-card" id="card-activity">
+          <h3 class="card-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            Recent Activity
+          </h3>
+          <div class="card-body" id="activity-content"></div>
+        </div>
+
+        <!-- Profile Score -->
+        <div class="card card-third animate-card" id="card-score">
+          <h3 class="card-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15l-2 5L9 14l-5-2 5-1 1-6 2 6 5 1-5 2z"/><circle cx="12" cy="12" r="10"/></svg>
+            Profile Score
+          </h3>
+          <div class="card-body" id="score-content"></div>
+        </div>
+      </div>
+    </main>
+  </section>
+
+  <!-- Export Modal -->
+  <div id="export-modal" class="modal-overlay" hidden>
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Export Profile Card</h3>
+        <button class="modal-close" id="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="export-card" class="export-card">
+          <!-- Rendered by export.js -->
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="download-png-btn" class="btn btn-primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Download as PNG
+        </button>
+        <button id="copy-clipboard-btn" class="btn btn-ghost">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+          </svg>
+          Copy to Clipboard
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="js/samples.js"></script>
+  <script src="js/github.js"></script>
+  <script src="js/stats.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/export.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
