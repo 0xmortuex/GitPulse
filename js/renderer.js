@@ -9,6 +9,7 @@ const Renderer = (() => {
   let heatmapTooltip = null;
 
   function render(stats) {
+    hideSkeleton();
     renderHeader(stats);
     renderLanguages(stats);
     renderTopRepos(stats);
@@ -21,6 +22,24 @@ const Renderer = (() => {
     animateCounters();
   }
 
+  // Skeleton loader is tied to the real fetch lifecycle: app.js calls
+  // showSkeleton() the moment the GitHub API requests kick off, and
+  // render() (called only once every request has actually resolved) hides
+  // it again and reveals the populated card.
+  function showSkeleton() {
+    const skeleton = document.getElementById('profile-skeleton');
+    const main = document.getElementById('profile-main');
+    if (skeleton) skeleton.hidden = false;
+    if (main) main.hidden = true;
+  }
+
+  function hideSkeleton() {
+    const skeleton = document.getElementById('profile-skeleton');
+    const main = document.getElementById('profile-main');
+    if (main) main.hidden = false;
+    if (skeleton) skeleton.hidden = true;
+  }
+
   function renderHeader(stats) {
     const { user, totalStars, totalForks, memberSince } = stats;
 
@@ -30,18 +49,23 @@ const Renderer = (() => {
     document.getElementById('profile-name').textContent = user.name || '';
     document.getElementById('profile-bio').textContent = user.bio || '';
 
-    // Meta
+    // Meta — all fields below (location, blog, company) are arbitrary
+    // user-controlled text from the GitHub profile and must be escaped.
     const metaEl = document.getElementById('profile-meta');
     const metas = [];
     if (user.location) {
-      metas.push(`<span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>${user.location}</span>`);
+      metas.push(`<span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>${escapeHtml(user.location)}</span>`);
     }
     if (user.blog) {
-      const url = user.blog.startsWith('http') ? user.blog : `https://${user.blog}`;
-      metas.push(`<span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg><a href="${url}" target="_blank" rel="noopener">${user.blog}</a></span>`);
+      const url = safeHttpUrl(user.blog);
+      if (url) {
+        metas.push(`<span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg><a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(user.blog)}</a></span>`);
+      } else {
+        metas.push(`<span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>${escapeHtml(user.blog)}</span>`);
+      }
     }
     if (user.company) {
-      metas.push(`<span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v.01M12 14v.01M16 14v.01M8 18v.01M12 18v.01M16 18v.01"/></svg>${user.company}</span>`);
+      metas.push(`<span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v.01M12 14v.01M16 14v.01M8 18v.01M12 18v.01M16 18v.01"/></svg>${escapeHtml(user.company)}</span>`);
     }
     metaEl.innerHTML = metas.join('');
 
@@ -92,7 +116,7 @@ const Renderer = (() => {
           ${stats.languages.map(l => `
             <div class="lang-item">
               <span class="lang-dot" style="background:${l.color}"></span>
-              <span class="lang-name">${l.name}</span>
+              <span class="lang-name">${escapeHtml(l.name)}</span>
               <span class="lang-pct">${l.percentage}%</span>
             </div>
           `).join('')}
@@ -137,7 +161,7 @@ const Renderer = (() => {
         },
         animation: {
           animateRotate: true,
-          duration: 1000
+          duration: Motion.prefersReduced() ? 0 : 1000
         }
       }
     });
@@ -151,15 +175,17 @@ const Renderer = (() => {
       return;
     }
 
+    // Repo name/description/URL are arbitrary user-controlled text (any GitHub
+    // repo owner can set them to anything) — always escape before injecting.
     container.innerHTML = `
       <div class="repo-list">
-        ${stats.topRepos.map(r => `
-          <div class="repo-item">
+        ${stats.topRepos.map((r, i) => `
+          <div class="repo-item repo-item-reveal" style="animation-delay:${i * 60}ms">
             <div class="repo-info">
-              <a class="repo-name" href="${r.html_url}" target="_blank" rel="noopener">${r.name}</a>
-              <div class="repo-desc">${r.description ? truncate(r.description, 60) : '<span style="color:var(--text-muted);font-style:italic">No description</span>'}</div>
+              <a class="repo-name" href="${escapeHtml(r.html_url)}" target="_blank" rel="noopener">${escapeHtml(r.name)}</a>
+              <div class="repo-desc">${r.description ? escapeHtml(truncate(r.description, 60)) : '<span style="color:var(--text-muted);font-style:italic">No description</span>'}</div>
               <div class="repo-meta">
-                ${r.language ? `<span class="repo-lang"><span class="repo-lang-dot" style="background:${getLanguageColor(r.language)}"></span>${r.language}</span>` : ''}
+                ${r.language ? `<span class="repo-lang"><span class="repo-lang-dot" style="background:${getLanguageColor(r.language)}"></span>${escapeHtml(r.language)}</span>` : ''}
                 <span class="repo-stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>${formatNum(r.stargazers_count)}</span>
                 <span class="repo-stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 7V3M17 7V3M7 7h10M7 7a4 4 0 00-4 4v0a4 4 0 004 4h0M17 7a4 4 0 014 4v0a4 4 0 01-4 4h0M7 15v4a2 2 0 002 2h6a2 2 0 002-2v-4"/></svg>${formatNum(r.forks_count)}</span>
               </div>
@@ -246,10 +272,14 @@ const Renderer = (() => {
                     if (!day) return `<div class="heatmap-cell heatmap-0" style="visibility:hidden"></div>`;
                     const level = getHeatLevel(day.count);
                     const dateStr = formatDate(day.date);
-                    return `<div class="heatmap-cell heatmap-${level}"
+                    // Diagonal wave: cells on the same (week + day) diagonal
+                    // fade in together, so the wave sweeps across the grid
+                    // instead of a flat left-to-right scan.
+                    const waveDelay = (wi + di) * 18;
+                    return `<div class="heatmap-cell heatmap-${level} heatmap-cell-reveal"
                       data-date="${dateStr}"
                       data-count="${day.count}"
-                      style="animation-delay:${(wi * 7 + di) * 5}ms"
+                      style="animation-delay:${waveDelay}ms"
                     ></div>`;
                   }).join('')}
                 </div>
@@ -262,18 +292,9 @@ const Renderer = (() => {
 
     // Tooltip
     setupHeatmapTooltip(container);
-
-    // Stagger animation
-    const cells = container.querySelectorAll('.heatmap-cell[data-date]');
-    cells.forEach((cell, i) => {
-      cell.style.opacity = '0';
-      cell.style.transform = 'scale(0)';
-      setTimeout(() => {
-        cell.style.transition = 'opacity 0.15s ease, transform 0.15s ease';
-        cell.style.opacity = '1';
-        cell.style.transform = 'scale(1)';
-      }, i * 5);
-    });
+    // Reveal wave is pure CSS (.heatmap-cell-reveal + animation-delay above);
+    // prefers-reduced-motion is handled globally by the CSS media query,
+    // which collapses the animation to effectively instant.
   }
 
   function setupHeatmapTooltip(container) {
@@ -370,8 +391,13 @@ const Renderer = (() => {
           }
         },
         animation: {
-          duration: 1000,
-          easing: 'easeOutQuart'
+          duration: Motion.prefersReduced() ? 0 : 800,
+          easing: 'easeOutQuart',
+          // Stagger each bar so the timeline visibly "draws in" left to right.
+          delay: (ctx) => {
+            if (Motion.prefersReduced()) return 0;
+            return ctx.type === 'data' ? ctx.dataIndex * 70 : 0;
+          }
         }
       }
     });
@@ -387,7 +413,7 @@ const Renderer = (() => {
           <span class="insight-label">Most Used Language</span>
           <span class="insight-value">
             <span class="lang-dot" style="background:${stats.topLang.color};width:8px;height:8px"></span>
-            ${stats.topLang.name}
+            ${escapeHtml(stats.topLang.name)}
           </span>
         </div>
       `);
@@ -404,7 +430,7 @@ const Renderer = (() => {
       items.push(`
         <div class="insight-item">
           <span class="insight-label">Most Starred Repo</span>
-          <span class="insight-value">${truncate(stats.mostStarred.name, 16)} (${formatNum(stats.mostStarred.stargazers_count)} \u2605)</span>
+          <span class="insight-value">${escapeHtml(truncate(stats.mostStarred.name, 16))} (${formatNum(stats.mostStarred.stargazers_count)} \u2605)</span>
         </div>
       `);
     }
@@ -434,14 +460,15 @@ const Renderer = (() => {
       return;
     }
 
+    // a.detail embeds repo names pulled straight from GitHub events (user-controlled).
     container.innerHTML = `
       <div class="activity-list">
         ${stats.recentActivity.map(a => `
           <div class="activity-item">
-            <div class="activity-icon">${a.icon}</div>
+            <div class="activity-icon">${escapeHtml(a.icon)}</div>
             <div class="activity-text">
-              <div class="activity-desc"><strong>${a.label}</strong> ${truncate(a.detail, 40)}</div>
-              <div class="activity-time">${a.time}</div>
+              <div class="activity-desc"><strong>${escapeHtml(a.label)}</strong> ${escapeHtml(truncate(a.detail, 40))}</div>
+              <div class="activity-time">${escapeHtml(a.time)}</div>
             </div>
           </div>
         `).join('')}
@@ -478,30 +505,41 @@ const Renderer = (() => {
       </div>
     `;
 
-    // Animate ring
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        const ring = container.querySelector('.score-ring-fill');
-        if (ring) {
-          ring.style.transition = 'stroke-dashoffset 1.5s ease';
-          ring.style.strokeDashoffset = offset;
-        }
-      }, 300);
-    });
+    // Animate ring (arc fills from 0 -> score). Skip the transition entirely
+    // under prefers-reduced-motion and just snap to the final value.
+    const ring = container.querySelector('.score-ring-fill');
+    if (ring) {
+      if (Motion.prefersReduced()) {
+        ring.style.strokeDashoffset = offset;
+      } else {
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            ring.style.transition = 'stroke-dashoffset 1.5s ease';
+            ring.style.strokeDashoffset = offset;
+          }, 300);
+        });
+      }
+    }
   }
 
   function animateCards() {
-    const cards = document.querySelectorAll('.animate-card');
-    cards.forEach((card, i) => {
-      setTimeout(() => {
-        card.classList.add('visible');
-      }, i * 100);
-    });
+    const cards = Array.from(document.querySelectorAll('.animate-card'));
+    Motion.staggerReveal(cards, { baseDelay: 100, className: 'visible' });
   }
 
   function animateCounters() {
+    const reduced = Motion.prefersReduced();
+    const counters = document.querySelectorAll('.counter');
+
+    if (reduced) {
+      counters.forEach(el => {
+        const target = parseInt(el.dataset.target, 10);
+        if (!isNaN(target)) el.textContent = formatNum(target);
+      });
+      return;
+    }
+
     setTimeout(() => {
-      const counters = document.querySelectorAll('.counter');
       counters.forEach(el => {
         const target = parseInt(el.dataset.target, 10);
         if (isNaN(target)) return;
@@ -555,5 +593,5 @@ const Renderer = (() => {
     return n.toString();
   }
 
-  return { render, cleanup };
+  return { render, cleanup, showSkeleton };
 })();

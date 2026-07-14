@@ -54,7 +54,10 @@ const GitHubAPI = (() => {
     const perPage = 100;
 
     while (true) {
-      const batch = await request(`/users/${username}/repos?per_page=${perPage}&sort=stars&direction=desc&page=${page}`);
+      // Note: GitHub's /users/:username/repos endpoint does not support sort=stars
+      // (only 'created', 'updated', 'pushed', 'full_name' are valid). We fetch in the
+      // default order and sort by stars client-side in fetchAll()/Stats.calculate().
+      const batch = await request(`/users/${username}/repos?per_page=${perPage}&sort=updated&direction=desc&page=${page}`);
       repos.push(...batch);
       if (batch.length < perPage) break;
       page++;

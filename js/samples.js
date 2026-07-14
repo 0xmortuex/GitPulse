@@ -56,3 +56,37 @@ const LANGUAGE_COLORS = {
 function getLanguageColor(lang) {
   return LANGUAGE_COLORS[lang] || '#8b949e';
 }
+
+/**
+ * Escape a value for safe interpolation into innerHTML.
+ * GitHub profile/repo fields (bio, description, location, blog, company,
+ * repo names, event payload text, etc.) are arbitrary user-controlled
+ * strings and must never be inserted into innerHTML unescaped.
+ */
+function escapeHtml(value) {
+  if (value === null || value === undefined) return '';
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * Validate/normalize a user-supplied URL (e.g. profile "blog" field) so it
+ * can only ever be http(s). Returns null if the value isn't a safe link,
+ * so callers can skip rendering it as a clickable href instead of risking
+ * a javascript: or data: URI.
+ */
+function safeHttpUrl(raw) {
+  if (!raw) return null;
+  const candidate = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  try {
+    const parsed = new URL(candidate);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+    return parsed.href;
+  } catch {
+    return null;
+  }
+}

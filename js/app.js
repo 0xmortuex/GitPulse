@@ -34,6 +34,9 @@ const App = (() => {
   function init() {
     renderChips();
     bindEvents();
+    Motion.attachRipple(analyzeBtn);
+    Motion.attachRipple(document.getElementById('export-btn'));
+    Motion.attachRipple(document.getElementById('download-png-btn'));
   }
 
   function renderChips() {
@@ -91,16 +94,24 @@ const App = (() => {
 
     setLoading(true);
 
+    // Crossfade to the profile view immediately and show its skeleton —
+    // the skeleton's lifetime is tied to the real fetch below, not a fixed
+    // timer: it only disappears once Renderer.render() actually runs.
+    Renderer.showSkeleton();
+    showProfileView();
+
     try {
       const data = await GitHubAPI.fetchAll(username);
       currentStats = Stats.calculate(data);
       ExportCard.setStats(currentStats);
-      showProfileView();
       Renderer.render(currentStats);
+      setLoading(false);
     } catch (err) {
       Toast.show(err.message || 'Something went wrong. Please try again.', 'error');
-    } finally {
+      // Re-enable the input before focusing it — showInputView() focuses
+      // usernameInput, which is a no-op while it's still disabled.
       setLoading(false);
+      showInputView();
     }
   }
 
@@ -117,15 +128,13 @@ const App = (() => {
 
   function showInputView() {
     Renderer.cleanup();
-    inputView.classList.add('active');
-    profileView.classList.remove('active');
+    Motion.crossfadeViews(profileView, inputView);
     usernameInput.value = '';
     usernameInput.focus();
   }
 
   function showProfileView() {
-    inputView.classList.remove('active');
-    profileView.classList.add('active');
+    Motion.crossfadeViews(inputView, profileView);
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
 

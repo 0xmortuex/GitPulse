@@ -98,7 +98,22 @@
       </div>
     </header>
 
-    <main class="profile-content">
+    <!-- Skeleton Loader: shown the instant a search starts, hidden once
+         Renderer.render() actually has data — tied to the real fetch. -->
+    <div id="profile-skeleton" class="profile-skeleton" hidden aria-hidden="true">
+      <div class="skel skel-header-block"></div>
+      <div class="profile-grid">
+        <div class="skel card-half"></div>
+        <div class="skel card-half"></div>
+        <div class="skel card-full"></div>
+        <div class="skel card-full"></div>
+        <div class="skel card-third"></div>
+        <div class="skel card-third"></div>
+        <div class="skel card-third"></div>
+      </div>
+    </div>
+
+    <main class="profile-content" id="profile-main">
       <!-- Profile Header -->
       <div class="profile-header card animate-card" id="profile-header">
         <div class="profile-info">
@@ -218,6 +233,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="js/samples.js"></script>
+  <script src="js/motion.js"></script>
   <script src="js/github.js"></script>
   <script src="js/stats.js"></script>
   <script src="js/renderer.js"></script>

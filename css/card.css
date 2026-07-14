@@ -62,14 +62,15 @@
   /* handled by the triple layout below */
 }
 
-/* Animate cards staggered */
+/* Animate cards staggered (fade + translateY), scheduled by
+   Motion.staggerReveal() in js/motion.js */
 .animate-card {
   opacity: 0;
   transform: translateY(20px);
 }
 
 .animate-card.visible {
-  animation: cardIn 0.5s ease forwards;
+  animation: cardIn var(--duration-slow) var(--ease-out) forwards;
 }
 
 @keyframes cardIn {
@@ -77,6 +78,59 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Repo cards stagger in the same way, driven by an inline animation-delay
+   set per-item in renderer.js (renderTopRepos). */
+.repo-item-reveal {
+  opacity: 0;
+  transform: translateY(10px);
+  animation: repoItemIn var(--duration-base) var(--ease-out) forwards;
+}
+
+@keyframes repoItemIn {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ========================================
+   Profile Skeleton (loading state)
+   Shown the instant a search starts, tied to the real fetch lifecycle
+   in app.js/renderer.js — not a fixed timer.
+   ======================================== */
+.profile-skeleton {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.profile-skeleton[hidden] {
+  display: none;
+}
+
+.skel {
+  background: linear-gradient(100deg, var(--card) 30%, var(--card-hover) 50%, var(--card) 70%);
+  background-size: 200% 100%;
+  border-radius: var(--radius-lg);
+  min-height: 200px;
+  animation: skeletonShimmer 1.6s ease-in-out infinite;
+}
+
+.skel.card-full {
+  min-height: 260px;
+}
+
+.skel-header-block {
+  height: 148px;
+  border-radius: var(--radius-lg);
+  margin-bottom: 1.25rem;
+}
+
+@keyframes skeletonShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 /* ========================================
@@ -399,6 +453,21 @@
   border-radius: 2px;
   cursor: pointer;
   transition: outline 0.15s;
+}
+
+/* Wave-by-wave reveal: cells fade+scale in on a diagonal, timed by the
+   inline animation-delay set per-cell in renderer.js (renderHeatmap). */
+.heatmap-cell-reveal {
+  opacity: 0;
+  transform: scale(0.4);
+  animation: heatCellIn var(--duration-fast) var(--ease-out) forwards;
+}
+
+@keyframes heatCellIn {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .heatmap-cell:hover {
